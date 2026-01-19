@@ -222,4 +222,4 @@ Improved template suggestions based on your edits
 
 💡 Pro Tip: Use consistent review comments like [REVIEW], [TODO], or [VERIFIED] to help the system learn your quality standards.
 
-Last Updated: December 2026 | Version: 1.0
+Last Updated: January 2026 | Version: 1.0
