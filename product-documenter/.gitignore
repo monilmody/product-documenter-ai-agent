@@ -1,0 +1,56 @@
+# ===============================
+# Python and runtime
+# ===============================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environment for this subproject
+venv/
+env/
+.venv/
+
+# ===============================
+# Application specific
+# ===============================
+scripts/documenter.db
+scripts/*.log
+scripts/__pycache__/
+
+# Auto-generated drafts
+docs/auto-generated/*
+
+# Temporary review files (keep structure)
+docs/review/temp_*
+docs/review/draft_*
+
+# Environment and configs
+.env
+.local.env
+config.local.json
+local_config.json
+
+# ===============================
+# Streamlit
+# ===============================
+.streamlit/secrets.toml
+.streamlit/config.toml.local
+
+# ===============================
+# IDE and editor
+# ===============================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===============================
+# State and cache files  
+# ===============================
+parent_project_state.json
+*.state.json
+state_*.json
+monitoring_state.json

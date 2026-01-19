@@ -1,0 +1,119 @@
+name: Auto Documentation with OpenAI
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'src/**'
+      - '**.py'
+      - '**.js'
+      - '**.ts'
+      - '**.java'
+      - '!docs/**'  # Don't trigger on doc changes
+
+jobs:
+  analyze-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      needs_docs: ${{ steps.analyze.outputs.needs_docs }}
+      change_summary: ${{ steps.analyze.outputs.change_summary }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Analyze changes for documentation needs
+        id: analyze
+        run: |
+          # Get commit messages and changed files
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          
+          # Determine if documentation is needed
+          if [[ "$COMMIT_MSG" == *"feat"* ]] || [[ "$COMMIT_MSG" == *"fix"* ]] || [[ "$CHANGED_FILES" == *".py"* ]]; then
+            echo "needs_docs=true" >> $GITHUB_OUTPUT
+            echo "change_summary=$COMMIT_MSG" >> $GITHUB_OUTPUT
+          else
+            echo "needs_docs=false" >> $GITHUB_OUTPUT
+            echo "change_summary=" >> $GITHUB_OUTPUT
+          fi
+
+  generate-docs:
+    needs: analyze-changes
+    if: needs.analyze-changes.outputs.needs_docs == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          pip install requests
+      
+      - name: Generate documentation via API
+        id: generate
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          # Call your documentation API
+          RESPONSE=$(curl -s -X POST http://localhost:8000/generate-docs \
+            -H "Content-Type: application/json" \
+            -d '{
+              "doc_type": "technical_spec",
+              "context": "${{ needs.analyze-changes.outputs.change_summary }}",
+              "source": "github_action",
+              "trigger": "push"
+            }' || echo '{}')
+          
+          # Extract content and cost
+          CONTENT=$(echo $RESPONSE | jq -r '.content // empty')
+          COST=$(echo $RESPONSE | jq -r '.cost // 0')
+          
+          # Save to file
+          echo "$CONTENT" > docs/auto-generated/$(date +%s).md
+          
+          # Output cost for tracking
+          echo "cost=$COST" >> $GITHUB_OUTPUT
+      
+      - name: Create Documentation PR
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "docs: auto-generated via OpenAI [cost: ${{ steps.generate.outputs.cost }}]"
+          title: "🤖 AI-Generated Documentation"
+          body: |
+            ### AI-Generated Documentation
+            
+            **Triggered by:** ${{ github.event.head_commit.message }}
+            
+            **AI Provider:** OpenAI
+            **Estimated Cost:** $${{ steps.generate.outputs.cost }}
+            
+            **Review Checklist:**
+            - [ ] Technical accuracy
+            - [ ] Completeness
+            - [ ] Licensing compliance
+            - [ ] Clarity and structure
+            
+            **Cost Control:**
+            - Monthly budget: $50
+            - This document: $${{ steps.generate.outputs.cost }}
+            - [View cost dashboard](http://localhost:3000)
+            
+            *This PR is auto-generated. Please review carefully before merging.*
+          branch: docs/ai-generated-${{ github.sha }}
+          labels: documentation,ai-generated,needs-review
+      
+      - name: Comment cost on PR
+        if: github.event.pull_request.number != ''
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "📊 Documentation generated with OpenAI. Cost: $${{ steps.generate.outputs.cost }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

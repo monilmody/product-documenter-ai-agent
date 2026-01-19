@@ -1,0 +1,48 @@
+name: Daily Cost Monitor
+on:
+  schedule:
+    - cron: '0 9 * * *'  # Daily at 9 AM
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Check costs
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          python scripts/cost_guard.py
+          
+          # Get results
+          RESULT=$(python -c "
+          from document_generator import SmartDocumentGenerator
+          g = SmartDocumentGenerator()
+          spent = g.cost_tracker.get_monthly_spent()
+          remaining = g.cost_tracker.get_remaining_budget()
+          print(f'{spent},{remaining}')
+          ")
+          
+          IFS=',' read -r SPENT REMAINING <<< "$RESULT"
+          echo "monthly_spent=$SPENT" >> $GITHUB_ENV
+          echo "remaining=$REMAINING" >> $GITHUB_ENV
+      
+      - name: Post to Slack (optional)
+        if: env.monthly_spent > 30  # Only if over $30 spent
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          channel-id: 'documentation-alerts'
+          slack-message: |
+            :money_with_wings: OpenAI Cost Alert
+            Monthly spent: $${{ env.monthly_spent }}
+            Remaining: $${{ env.remaining }}
+            Dashboard: https://your-domain.com/dashboard
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
