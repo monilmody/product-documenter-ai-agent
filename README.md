@@ -23,7 +23,7 @@ This agent monitors your development activity, creates structured documentation 
 
 Prerequisites:
 # Clone the repository
-git clone https://github.com/yourusername/product-documenter-ai-agent.git
+git clone https://github.com/monilmody/product-documenter-ai-agent.git
 cd product-documenter-ai-agent
 
 # Install dependencies
